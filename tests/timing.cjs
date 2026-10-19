@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');
+const C=require('../engine.js');
+let cases=0;const test=(name,fn)=>{fn();cases++;console.log('PASS '+name);};
+const m=60000,base=new Date(2026,9,19,13,0,0).getTime();
+const conf={method:'DPPH',count:3,interval:3*m,duration:30*m};
+test('13:00 example and independent deadlines',()=>{const s=C.create(conf,base);assert.deepEqual(s.tubes.map(t=>[t.start-base,t.test-base]),[[0,30*m],[3*m,33*m],[6*m,36*m]]);assert.equal(C.advance(s,base).length,1);assert.equal(C.advance(s,base+30*m).filter(e=>e.type==='B').length,1);assert.equal(s.tubes[1].due,false);});
+test('cross midnight and hour using absolute timestamps',()=>{const b=new Date(2026,9,19,23,58).getTime(),s=C.create(conf,b);assert.equal(new Date(s.tubes[1].start).getDate(),20);assert.equal(new Date(s.tubes[0].test).getMinutes(),28);assert.equal(s.tubes[0].test-b,30*m);});
+test('pause postpones only unstarted tubes; started tests remain live',()=>{const s=C.create(conf,base);C.advance(s,base);C.pause(s,base+m);const e=C.advance(s,base+31*m);assert.deepEqual(e.map(x=>[x.id,x.type]),[[1,'B']]);assert.equal(s.tubes[1].started,false);C.resume(s,base+32*m);assert.equal(s.tubes[0].test,base+30*m);assert.equal(s.tubes[1].start,base+34*m);assert.equal(s.tubes[1].test,base+64*m);});
+test('collision emits both kinds exactly once and in time order',()=>{const s=C.create({...conf,duration:3*m},base);C.advance(s,base);const e=C.advance(s,base+3*m);assert.deepEqual(e.map(x=>[x.id,x.type]),[[1,'B'],[2,'A']]);assert.equal(C.advance(s,base+3*m).length,0);});
+test('late tick catches every event without drift or duplicates',()=>{const s=C.create(conf,base);const e=C.advance(s,base+40*m);assert.equal(e.length,6);assert.equal(new Set(e.map(x=>x.key)).size,6);assert.equal(C.advance(s,base+45*m).length,0);assert.equal(s.tubes[2].test,base+36*m);});
+test('pause before scheduled start; repeated pauses accumulate correctly',()=>{const s=C.create(conf,base+10*m);C.pause(s,base);C.resume(s,base+2*m);C.pause(s,base+3*m);C.resume(s,base+5*m);assert.equal(s.tubes[0].start,base+14*m);assert.equal(C.advance(s,base+13*m).length,0);assert.equal(C.advance(s,base+14*m).length,1);});
+test('pause at deadline dispatches due addition before freezing remaining tubes',()=>{const s=C.create(conf,base);const e=C.pause(s,base+3*m);assert.equal(s.tubes[1].started,true);assert.equal(s.tubes[2].started,false);assert.equal(e.length,2);});
+test('simultaneous tubes and JSON restoration retain all events',()=>{let s=C.create({...conf,count:50,interval:0},base);assert.equal(C.advance(s,base).length,50);s=JSON.parse(JSON.stringify(s));assert.equal(C.advance(s,base+30*m).length,50);assert.equal(s.alerts.length,100);});
+test('restored pause maintains frozen relative schedule',()=>{let s=C.create(conf,base);C.pause(s,base+m);s=JSON.parse(JSON.stringify(s));const t=C.effective(s.tubes[1],s,base+10*m);assert.equal(t.start,base+12*m);C.resume(s,base+10*m);assert.equal(s.tubes[1].start,t.start);});
+console.log(`${cases} timing scenarios passed.`);
