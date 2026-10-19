@@ -4,11 +4,21 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101116"><meta name="color-scheme" content="dark"><meta name="description" content="ABTS 与 DPPH 多反应管自动计时。自动加液和测试提醒，独立计时，支持暂停后续加液。">
 <title>反应时钟 · ABTS / DPPH</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=direction1">
 </head>
 <body>
+<div id="app-viewport" class="app-viewport">
 <div class="shell">
 <header class="top"><div class="brand"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3h8M10 3v7l-5 8a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-8V3M8 15h8"/><path d="M10 18h1m3-1h1"/></svg></span><div><h1>反应时钟<span>ABTS / DPPH</span></h1><p>让每一管，都恰好到时。</p></div></div><span class="local-tag"><i></i> 无需登录 · 本机计时</span></header>
+<nav class="view-toolbar" aria-label="页面方向">
+<span class="view-label">显示方向</span>
+<div class="view-switch" role="group" aria-label="选择显示方向">
+<button type="button" data-view="auto" aria-pressed="true"><span aria-hidden="true">↻</span> 自动</button>
+<button type="button" data-view="portrait" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18.5h4"/></svg>竖屏</button>
+<button type="button" data-view="landscape" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M18.5 10v4"/></svg>横屏</button>
+</div>
+<span id="view-note" class="view-note" role="status">跟随设备方向</span>
+</nav>
 <main class="workspace">
 <section class="settings panel" aria-labelledby="setup-title">
 <div class="section-head"><h2 id="setup-title">实验设置</h2><span class="step">01 / 设置</span></div>
@@ -41,6 +51,7 @@
 </main>
 <footer class="footer"><span>按实际时间计算 · 自动跨日</span><a href="ui-credits.txt" target="_blank" rel="noopener">UI 组件 / Uiverse ↗</a></footer>
 </div>
+</div>
 <dialog id="reset-dialog" aria-labelledby="reset-title"><h2 id="reset-title">重置本次实验？</h2><p>所有计时与排程将被清除。</p><div class="dialog-actions"><button id="cancel-reset" type="button" autofocus>取消</button><button id="confirm-reset" type="button">确定重置</button></div></dialog>
-<script src="engine.js"></script><script src="app.js"></script>
+<script src="orientation.js?v=direction1"></script><script src="engine.js"></script><script src="app.js"></script>
 </body></html>
