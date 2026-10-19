@@ -30,7 +30,7 @@
 <div class="field"><label for="interval">相邻两管加液间隔</label><div class="input-unit"><input id="interval" type="number" inputmode="decimal" min="0" max="100000" step="any" value="3" required><select id="interval-unit" aria-label="加液间隔单位"><option value="60000">分钟</option><option value="1000">秒</option></select></div><p class="hint">每管独立计时，到时自动提醒。</p></div>
 <div class="field"><label>实验开始时间</label><div class="start-options"><label><input type="radio" name="start-mode" value="now" checked>立即开始</label><label><input type="radio" name="start-mode" value="scheduled">指定时间</label></div><div id="scheduled-fields" hidden><label class="sr-only" for="start-time">开始时间</label><input id="start-time" type="time" step="1"><p id="scheduled-hint" class="hint">已过的时刻将安排在明天。</p></div></div>
 </fieldset>
-<div class="sound-tests"><button type="button" id="test-a"><span aria-hidden="true">♪</span> 试听加液音 A</button><button type="button" id="test-b"><span aria-hidden="true">♫</span> 试听测试音 B</button></div>
+<div class="sound-tests"><button type="button" id="test-a"><span aria-hidden="true">♪</span> 试听“加液”</button><button type="button" id="test-b"><span aria-hidden="true">♫</span> 试听“测试”</button></div>
 <p id="error" class="error" role="alert" hidden></p>
 <button type="submit" id="start" class="primary"><span class="button-text">开始实验</span><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></span></button>
 <p class="under-button" id="setup-note">开始后，所有加液与测试提醒自动进行。</p>
@@ -38,12 +38,12 @@
 </section>
 <div class="monitor">
 <section class="clock-panel" aria-label="当前时间"><div class="clock-top"><span>当前时间</span><span id="run-state" class="run-state">等待开始</span></div><div id="clock" class="clock">--:--<span>:--</span></div><div class="clock-bottom"><span id="today">—</span><span>本地时间</span></div></section>
-<div class="device-status"><button id="sound-status" type="button"><i class="dot amber"></i><span>声音待启用</span></button><span id="wake-status"><i class="dot"></i>开始后申请常亮</span></div>
+<div class="device-status"><button id="sound-status" type="button"><i class="dot amber"></i><span>语音待启用</span></button><span id="wake-status"><i class="dot"></i>开始后申请常亮</span></div>
 <div class="foreground"><span aria-hidden="true">ⓘ</span><div><strong>使用时保持页面前台、屏幕亮起</strong><p>后台或锁屏提醒无法保证。请提前试听，确认设备音量。</p></div></div>
 <section id="alerts" class="alerts" aria-live="polite" aria-atomic="false" aria-label="当前操作提醒" hidden></section>
 <section class="next-grid" aria-label="下一次操作">
-<article class="next-card addition"><div class="next-label"><span class="symbol" aria-hidden="true">＋</span><h2>下一次加液</h2><span class="sound-label">提示音 A</span></div><div id="next-a-tube" class="tube">等待开始</div><div class="next-detail"><span id="next-a-time">--:--:--</span><span id="next-a-count" class="countdown">--:--</span></div><div id="next-a-caption" class="card-caption">开始实验后自动提醒</div></article>
-<article class="next-card testing"><div class="next-label"><span class="symbol" aria-hidden="true">◷</span><h2>下一次测试</h2><span class="sound-label">提示音 B</span></div><div id="next-b-tube" class="tube">等待开始</div><div class="next-detail"><span id="next-b-time">--:--:--</span><span id="next-b-count" class="countdown">--:--</span></div><div id="next-b-caption" class="card-caption">每管从加液起独立计时</div></article>
+<article class="next-card addition"><div class="next-label"><span class="symbol" aria-hidden="true">＋</span><h2>下一次加液</h2><span class="sound-label">语音：加液</span></div><div id="next-a-tube" class="tube">等待开始</div><div class="next-detail"><span id="next-a-time">--:--:--</span><span id="next-a-count" class="countdown">--:--</span></div><div id="next-a-caption" class="card-caption">开始实验后自动提醒</div></article>
+<article class="next-card testing"><div class="next-label"><span class="symbol" aria-hidden="true">◷</span><h2>下一次测试</h2><span class="sound-label">语音：测试</span></div><div id="next-b-tube" class="tube">等待开始</div><div class="next-detail"><span id="next-b-time">--:--:--</span><span id="next-b-count" class="countdown">--:--</span></div><div id="next-b-caption" class="card-caption">每管从加液起独立计时</div></article>
 </section>
 <section class="control-panel"><div class="controls"><button type="button" id="pause" disabled>Ⅱ 暂停后续加液</button><button type="button" id="resume" class="continue" hidden>▶ 继续</button><button type="button" id="reset" disabled>↺ 重置</button></div><p>暂停只推迟后续加液，已开始的反应继续计时。</p><p id="session-note" class="session-note" hidden></p></section>
 </div>
@@ -53,5 +53,5 @@
 </div>
 </div>
 <dialog id="reset-dialog" aria-labelledby="reset-title"><h2 id="reset-title">重置本次实验？</h2><p>所有计时与排程将被清除。</p><div class="dialog-actions"><button id="cancel-reset" type="button" autofocus>取消</button><button id="confirm-reset" type="button">确定重置</button></div></dialog>
-<script src="orientation.js?v=direction1"></script><script src="engine.js"></script><script src="app.js"></script>
+<script src="orientation.js?v=direction1"></script><script src="voice.js?v=voice1"></script><script src="engine.js"></script><script src="app.js?v=voice1"></script>
 </body></html>

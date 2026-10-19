@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
   const $=id=>document.getElementById(id),Core=TimerCore,KEY='reaction-clock-v1';
-  let method='DPPH',state=null,preview=null,lastTable='',lastAlert='',storageOK=true,audio=null,wake=null,wakeBusy=false,draining=false,generation=0;
+  let method='DPPH',state=null,preview=null,lastTable='',lastAlert='',storageOK=true,audio=null,wake=null,wakeBusy=false,draining=false,generation=0,voiceBuffers=null,voicePromise=null,voiceError=false;
   const soundQueue=[],nodes=new Set(),methodValues={DPPH:{value:'30',unit:'60000'},ABTS:{value:'',unit:'60000'}};
   const pad=n=>String(n).padStart(2,'0');
   const time=ms=>{const d=new Date(ms);return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;};
@@ -14,20 +14,26 @@
   function startTime(now){if(document.querySelector('[name="start-mode"]:checked').value==='now')return now;const v=$('start-time').value;if(!v)return NaN;const [h,m,s=0]=v.split(':').map(Number),d=new Date(now);d.setHours(h,m,s,0);if(d.getTime()<now)d.setDate(d.getDate()+1);return d.getTime();}
   function buildPreview(){if(state)return;const c=config(),now=Date.now(),start=startTime(now);preview=valid(c)&&Number.isFinite(start)?Core.create(c,start):null;lastTable='';render(now);}
   function setMethod(next){methodValues[method]={value:$('duration').value,unit:$('duration-unit').value};method=next;$('duration').value=methodValues[next].value;$('duration-unit').value=methodValues[next].unit;document.querySelectorAll('[data-method]').forEach(b=>{b.classList.toggle('selected',b.dataset.method===next);b.setAttribute('aria-pressed',String(b.dataset.method===next));});$('duration-help').textContent=next==='ABTS'?'请按你的 ABTS 实验方案填写反应时长。':'DPPH 默认 30 分钟，可按实验方案修改。';buildPreview();}
-  function soundStatus(){const on=audio&&audio.state==='running';$('sound-status').innerHTML=`<i class="dot ${on?'green':'amber'}"></i><span>${on?'声音已启用 · 可试听':audio?'声音中断 · 点按恢复':'声音待启用 · 点按开启'}</span>`;}
+  function soundStatus(){const on=audio&&audio.state==='running'&&voiceBuffers&&!voiceError;const label=voiceError?'语音加载失败 · 点按重试':!audio?'语音待启用 · 点按开启':audio.state!=='running'?'语音中断 · 点按恢复':voiceBuffers?'语音已启用 · 可试听':'语音准备中…';$('sound-status').innerHTML=`<i class="dot ${on?'green':'amber'}"></i><span>${label}</span>`;}
+  async function loadVoiceBuffers(){
+    if(voiceBuffers)return voiceBuffers;
+    if(!voicePromise){voicePromise=Promise.all(['A','B'].map(async type=>{const encoded=window.ReactionVoice?.[type];if(!encoded)throw Error('Voice prompt missing');const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));return [type,await audio.decodeAudioData(bytes.buffer)];})).then(entries=>{voiceBuffers=Object.fromEntries(entries);voiceError=false;soundStatus();return voiceBuffers;}).catch(error=>{voicePromise=null;voiceError=true;soundStatus();throw error;});}
+    return voicePromise;
+  }
   async function enableAudio(){
     try{if(!audio){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error('unsupported');audio=new AC();audio.onstatechange=()=>{soundStatus();if(audio.state==='running')drain();};}
-      await audio.resume();soundStatus();if(audio.state==='running'){drain();return true;}return false;
-    }catch{$('sound-status').innerHTML='<i class="dot amber"></i><span>声音不可用 · 请检查浏览器</span>';return false;}
+      await audio.resume();await loadVoiceBuffers();soundStatus();if(audio.state==='running'){drain();return true;}return false;
+    }catch{if(voiceError)soundStatus();else $('sound-status').innerHTML='<i class="dot amber"></i><span>语音不可用 · 请检查浏览器</span>';return false;}
   }
-  // Two low chimes for addition; three higher alternating pulses for testing.
-  function play(type){return new Promise(resolve=>{
-    if(!audio||audio.state!=='running'){resolve(false);return;}
-    const pattern=type==='A'?[[0,523,.17],[.24,659,.23]]:[[0,880,.2],[.27,1175,.2],[.54,880,.30]];
-    const base=audio.currentTime+.02;
-    pattern.forEach(([offset,freq,duration])=>{const osc=audio.createOscillator(),gain=audio.createGain();osc.type=type==='A'?'sine':'triangle';osc.frequency.value=freq;gain.gain.setValueAtTime(0,base+offset);gain.gain.linearRampToValueAtTime(.3,base+offset+.015);gain.gain.exponentialRampToValueAtTime(.001,base+offset+duration);osc.connect(gain);gain.connect(audio.destination);nodes.add(osc);osc.onended=()=>{nodes.delete(osc);osc.disconnect();gain.disconnect();};osc.start(base+offset);osc.stop(base+offset+duration+.02);});
-    setTimeout(()=>resolve(audio.state==='running'),type==='A'?680:1080);
-  });}
+  // Bundled Mandarin recordings say exactly “加液” and “测试”. The queue
+  // advances on actual playback completion, keeping simultaneous alerts serial.
+  async function play(type){
+    if(!audio||audio.state!=='running')return false;
+    const token=generation;
+    let buffers;try{buffers=await loadVoiceBuffers();}catch{return false;}
+    if(audio.state!=='running'||token!==generation)return false;
+    return new Promise(resolve=>{const source=audio.createBufferSource();source.buffer=buffers[type];source.connect(audio.destination);nodes.add(source);source.onended=()=>{nodes.delete(source);source.disconnect();setTimeout(()=>resolve(audio.state==='running'&&token===generation),150);};source.start();});
+  }
   async function drain(){if(draining||!audio||audio.state!=='running'||document.hidden)return;draining=true;const token=generation;
     try{while(soundQueue.length&&token===generation&&audio.state==='running'&&!document.hidden){const job=soundQueue[0],ok=await play(job.type);if(token!==generation)break;if(!ok)break;soundQueue.shift();if(job.event){job.event.played=true;save();}}}finally{draining=false;if(soundQueue.length&&token!==generation)drain();}
   }
@@ -51,7 +57,7 @@
     $('table-tag').textContent=!state?'预览':paused?'顺延中':'自动计时';$('progress').textContent=state?`${state.tubes.filter(t=>t.due).length} / ${state.config.count} 管已到测试时间`:`共 ${s?.config.count||0} 管`;
     $('schedule-info').textContent=s?`${s.config.method} · ${date(s.start)} ${time(s.start)} ${state?'开始':'预计开始'}${paused?' · 尚未开始的管按暂停时长顺延':!state?' · 实际时间以点击开始为准':''}`:'请填写反应时长与管数。';
     const alerts=state?state.alerts.filter(e=>now-e.seen<30000||!e.played):[],hot=new Set(alerts.map(e=>e.key));
-    const html=alerts.map(e=>`<div class="alert ${e.type==='B'?'alert-b':''}">第 ${e.id} 管：${e.type==='A'?'请加液，开始反应':'反应时间到，请测试'}<small>${timedLabel(e.at,now)}${e.seen-e.at>2000?' · 返回页面后补发':''}${!e.played?' · 等待声音播放':''}</small></div>`).join('');
+    const html=alerts.map(e=>`<div class="alert ${e.type==='B'?'alert-b':''}">第 ${e.id} 管：${e.type==='A'?'请加液，开始反应':'反应时间到，请测试'}<small>${timedLabel(e.at,now)}${e.seen-e.at>2000?' · 返回页面后补发':''}${!e.played?' · 等待语音播报':''}</small></div>`).join('');
     $('alerts').hidden=!alerts.length;if(html!==lastAlert){$('alerts').innerHTML=html;lastAlert=html;}
     card('a',now);card('b',now);renderTable(s,now,hot);if(done)releaseWake();
   }
@@ -70,6 +76,6 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(state){const now=Date.now();for(const e of state.alerts)if(!e.played)e.seen=now;tick();requestWake();}if(audio){audio.resume().then(drain).catch(()=>{});}soundStatus();}});
   window.addEventListener('pageshow',()=>{tick();requestWake();});
   const now=new Date();now.setMinutes(now.getMinutes()+5);$('start-time').value=`${pad(now.getHours())}:${pad(now.getMinutes())}:00`;
-  try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&raw.version===1&&valid(raw.config)&&Number.isFinite(raw.start)&&Array.isArray(raw.tubes)&&raw.tubes.length===raw.config.count&&raw.tubes.every(t=>Number.isFinite(t.start)&&Number.isFinite(t.test)&&typeof t.started==='boolean'&&typeof t.due==='boolean')&&Array.isArray(raw.alerts)&&(raw.pausedAt===null||Number.isFinite(raw.pausedAt))){state=raw;method=raw.config.method;$('duration').value=raw.config.duration/60000;$('count').value=raw.config.count;$('interval').value=raw.config.interval/60000;document.querySelectorAll('[data-method]').forEach(b=>{b.classList.toggle('selected',b.dataset.method===method);b.setAttribute('aria-pressed',String(b.dataset.method===method));});for(const e of state.alerts)if(!e.played){e.seen=Date.now();soundQueue.push({type:e.type,event:e});}$('session-note').hidden=false;$('session-note').textContent='已恢复本机实验。请点按上方声音状态启用声音；离开页面期间的提醒将补发。';}}catch{storageOK=false;}
+  try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&raw.version===1&&valid(raw.config)&&Number.isFinite(raw.start)&&Array.isArray(raw.tubes)&&raw.tubes.length===raw.config.count&&raw.tubes.every(t=>Number.isFinite(t.start)&&Number.isFinite(t.test)&&typeof t.started==='boolean'&&typeof t.due==='boolean')&&Array.isArray(raw.alerts)&&(raw.pausedAt===null||Number.isFinite(raw.pausedAt))){state=raw;method=raw.config.method;$('duration').value=raw.config.duration/60000;$('count').value=raw.config.count;$('interval').value=raw.config.interval/60000;document.querySelectorAll('[data-method]').forEach(b=>{b.classList.toggle('selected',b.dataset.method===method);b.setAttribute('aria-pressed',String(b.dataset.method===method));});for(const e of state.alerts)if(!e.played){e.seen=Date.now();soundQueue.push({type:e.type,event:e});}$('session-note').hidden=false;$('session-note').textContent='已恢复本机实验。请点按上方语音状态启用语音；离开页面期间的提醒将补发。';}}catch{storageOK=false;}
   if(!state)buildPreview();tick();setInterval(tick,250);soundStatus();
 })();
