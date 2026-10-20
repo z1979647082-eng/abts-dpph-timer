@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101116"><meta name="color-scheme" content="dark"><meta name="description" content="ABTS 与 DPPH 多反应管自动计时。自动加液和测试提醒，独立计时，支持暂停后续加液。">
 <title>反应时钟 · ABTS / DPPH</title>
-<link rel="stylesheet" href="style.css?v=direction1">
+<link rel="stylesheet" href="style.css?v=samples-audio2">
 </head>
 <body>
 <div id="app-viewport" class="app-viewport">
@@ -30,6 +30,7 @@
 <div class="field"><label for="interval">相邻两管加液间隔</label><div class="input-unit"><input id="interval" type="number" inputmode="decimal" min="0" max="100000" step="any" value="3" required><select id="interval-unit" aria-label="加液间隔单位"><option value="60000">分钟</option><option value="1000">秒</option></select></div><p class="hint">每管独立计时，到时自动提醒。</p></div>
 <div class="field"><label>实验开始时间</label><div class="start-options"><label><input type="radio" name="start-mode" value="now" checked>立即开始</label><label><input type="radio" name="start-mode" value="scheduled">指定时间</label></div><div id="scheduled-fields" hidden><label class="sr-only" for="start-time">开始时间</label><input id="start-time" type="time" step="1"><p id="scheduled-hint" class="hint">已过的时刻将安排在明天。</p></div></div>
 </fieldset>
+<details class="names-editor" id="names-editor"><summary>样品命名 <span id="names-count">10 管</span></summary><p class="hint">按加液顺序填写。可重复命名，留空时显示管号；实验中也可修改。</p><div id="name-inputs" class="name-inputs"></div></details>
 <div class="sound-tests"><button type="button" id="test-a"><span aria-hidden="true">♪</span> 试听“加液”</button><button type="button" id="test-b"><span aria-hidden="true">♫</span> 试听“测试”</button></div>
 <p id="error" class="error" role="alert" hidden></p>
 <button type="submit" id="start" class="primary"><span class="button-text">开始实验</span><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></span></button>
@@ -39,6 +40,7 @@
 <div class="monitor">
 <section class="clock-panel" aria-label="当前时间"><div class="clock-top"><span>当前时间</span><span id="run-state" class="run-state">等待开始</span></div><div id="clock" class="clock">--:--<span>:--</span></div><div class="clock-bottom"><span id="today">—</span><span>本地时间</span></div></section>
 <div class="device-status"><button id="sound-status" type="button"><i class="dot amber"></i><span>语音待启用</span></button><span id="wake-status"><i class="dot"></i>开始后申请常亮</span></div>
+<details class="audio-check"><summary>听不到声音？点这里检查</summary><p>先调高<strong>媒体音量</strong>，关闭静音，检查声音是否输出到了蓝牙耳机。下方播放器可直接试听。</p><audio id="voice-player" controls preload="auto" playsinline aria-label="中文语音试听播放器"></audio><p class="hint">播放器显示已播放，并不能确认扬声器实际有声音。</p><div class="audio-links"><a href="audio/add.wav" target="_blank" rel="noopener">单独打开“加液”</a><a href="audio/test.wav" target="_blank" rel="noopener">单独打开“测试”</a></div></details>
 <div class="foreground"><span aria-hidden="true">ⓘ</span><div><strong>使用时保持页面前台、屏幕亮起</strong><p>后台或锁屏提醒无法保证。请提前试听，确认设备音量。</p></div></div>
 <section id="alerts" class="alerts" aria-live="polite" aria-atomic="false" aria-label="当前操作提醒" hidden></section>
 <section class="next-grid" aria-label="下一次操作">
@@ -47,11 +49,11 @@
 </section>
 <section class="control-panel"><div class="controls"><button type="button" id="pause" disabled>Ⅱ 暂停后续加液</button><button type="button" id="resume" class="continue" hidden>▶ 继续</button><button type="button" id="reset" disabled>↺ 重置</button></div><p>暂停只推迟后续加液，已开始的反应继续计时。</p><p id="session-note" class="session-note" hidden></p></section>
 </div>
-<section class="schedule panel" aria-labelledby="schedule-title"><div class="schedule-head"><div><div class="section-head"><h2 id="schedule-title">反应时间表</h2><span id="table-tag" class="table-tag">预览</span></div><p id="schedule-info">按设置自动生成，开始后锁定时间。</p></div><span id="progress">共 10 管</span></div><div class="table-scroll"><table><thead><tr><th scope="col">管号</th><th scope="col">开始反应 <small>加液</small></th><th scope="col">测试时间</th><th scope="col">状态</th></tr></thead><tbody id="schedule-body"></tbody></table></div><div class="table-footer"><span><i class="dot"></i> 尚未开始</span><span><i class="dot green"></i> 反应中</span><span><i class="dot orange"></i> 已到测试时间</span></div></section>
+<section class="schedule panel" aria-labelledby="schedule-title"><div class="schedule-head"><div><div class="section-head"><h2 id="schedule-title">反应时间表</h2><span id="table-tag" class="table-tag">预览</span><button id="edit-names" type="button">命名样品</button></div><p id="schedule-info">按设置自动生成，开始后锁定时间。</p></div><span id="progress">共 10 管</span></div><div class="table-scroll"><table><thead><tr><th scope="col">样品／管号</th><th scope="col">开始反应 <small>加液</small></th><th scope="col">测试时间</th><th scope="col">状态</th></tr></thead><tbody id="schedule-body"></tbody></table></div><div class="table-footer"><span><i class="dot"></i> 尚未开始</span><span><i class="dot green"></i> 反应中</span><span><i class="dot orange"></i> 已到测试时间</span></div></section>
 </main>
 <footer class="footer"><span>按实际时间计算 · 自动跨日</span><a href="ui-credits.txt" target="_blank" rel="noopener">UI 组件 / Uiverse ↗</a></footer>
 </div>
 </div>
 <dialog id="reset-dialog" aria-labelledby="reset-title"><h2 id="reset-title">重置本次实验？</h2><p>所有计时与排程将被清除。</p><div class="dialog-actions"><button id="cancel-reset" type="button" autofocus>取消</button><button id="confirm-reset" type="button">确定重置</button></div></dialog>
-<script src="orientation.js?v=direction1"></script><script src="voice.js?v=voice1"></script><script src="engine.js"></script><script src="app.js?v=voice1"></script>
+<script src="orientation.js?v=direction1"></script><script src="voice.js?v=audio2"></script><script src="media-voice.js?v=audio2"></script><script src="engine.js?v=samples2"></script><script src="app.js?v=samples-audio2"></script>
 </body></html>
